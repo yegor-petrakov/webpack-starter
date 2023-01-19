@@ -1,41 +1,64 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+
+const mode = process.env.NODE_ENV || 'development';
+const devMode = mode === 'development';
+const target = devMode ? 'web' : 'browserslist';
+const devtool = devMode ? 'source-map' : undefined;
 
 module.exports = {
-    mode: "development",
-    entry: './src/index.js',
-
+    mode,
+    target,
+    devtool,
+    devServer: {
+        port: 3000,
+        open: true,
+        hot: true
+    },
+    entry: [
+        '@babel/polyfill',
+        path.resolve(__dirname, 'src', 'index.js')
+    ],
     output: {
-        filename: 'bundle.js',
         path: path.resolve(__dirname, 'dist'),
         clean: true,
-        assetModuleFilename: '[name][ext]'
+        filename: '[name].[contenthash].js',
+        assetModuleFilename: 'assets/[hash][ext]'
     },
-
-    devtool: 'source-map',
-    watch: true,
-
-    devServer: {
-        static: {
-            directory: path.resolve(__dirname, 'dist')
-        },
-        port: 3000
-    },
-
+    plugins: [
+        new HtmlWebpackPlugin({
+            template: path.resolve(__dirname, 'src', 'index.html'),
+        }),
+        new MiniCssExtractPlugin({
+            filename: '[name].[contenthash].css'
+        })
+    ],
     module: {
         rules: [
             {
-                test: /\.scss$/i,
+                test: /\.html$/i,
+                loader: 'html-loader',
+            },
+            {
+                test: /\.(c|sa|sc)ss$/i,
                 use: [
-                    "style-loader",
+                    devMode ? "style-loader" : MiniCssExtractPlugin.loader,
                     "css-loader",
-                    "postcss-loader",
-                    "sass-loader",
+                    {
+                        loader: 'postcss-loader',
+                        options: {
+                            postcssOptions: {
+                                plugins: [require('postcss-preset-env')]
+                            }
+                        }
+                    },
+                    "sass-loader"
                 ]
             },
             {
-                test: /\.js$/,
-                exclude: /node_modules/,
+                test: /\.m?js$/i,
+                exclude: /(node_modules|bower_components)/,
                 use: {
                     loader: 'babel-loader',
                     options: {
@@ -44,16 +67,39 @@ module.exports = {
                 }
             },
             {
-                test: /\.(png|svg|jpg|jpeg|gif)$/i,
+                test: /\.woff2?$/i,
+                type: 'asset/resource',
+                generator: {
+                    filename: 'fonts/[name][ext]',
+                },
+            },
+            {
+                test: /\.(jpe?g|png|webp|gif|svg)$/i,
+                use: [
+                    {
+                        loader: 'image-webpack-loader',
+                        options: {
+                            mozjpeg: {
+                                progressive: true,
+                            },
+                            optipng: {
+                                enabled: false,
+                            },
+                            pngquant: {
+                                quality: [0.65, 0.90],
+                                speed: 4
+                            },
+                            gifsicle: {
+                                interlaced: false,
+                            },
+                            webp: {
+                                quality: 75
+                            }
+                        }
+                    }
+                ],
                 type: 'asset/resource'
             }
         ]
-    },
-    plugins: [
-        new HtmlWebpackPlugin({
-            title: 'Портфолио Егора',
-            filename: 'index.html',
-            template: 'src/template.html'
-        }),
-    ]
-};
+    }
+}
